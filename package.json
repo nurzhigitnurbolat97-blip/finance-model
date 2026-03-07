@@ -17,6 +17,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+<<<<<<< HEAD
     "@tailwindcss/cli": "^4.2.1",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^20",
@@ -27,6 +28,15 @@
     "eslint-config-next": "16.1.6",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
+=======
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+>>>>>>> 46e2bb650b039b514c016acca978b6fe35bda2a8
     "typescript": "^5"
   }
 }

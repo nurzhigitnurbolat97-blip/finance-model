@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -29,6 +30,14 @@ export default function RootLayout({
       >
         {children}
       </body>
+=======
+import "./globals.css";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="ru">
+      <body>{children}</body>
+>>>>>>> 46e2bb650b039b514c016acca978b6fe35bda2a8
     </html>
   );
 }
