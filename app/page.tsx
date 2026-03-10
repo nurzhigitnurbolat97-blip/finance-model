@@ -13,6 +13,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import { exportFinancialModelToExcel } from "@/lib/exportToExcel";
 
 type ScenarioKey = "base" | "optimistic" | "crisis";
 type TaxMode = "simplified" | "ip_general" | "too_general";
@@ -22,7 +23,7 @@ type Product = {
   name: string;
   price: number;
   volume: number;
-  growth: number; // хранится как 3, 5, 10
+  growth: number;
   costPerUnit: number;
 };
 
@@ -156,7 +157,6 @@ export default function Home() {
   const [rentCosts, setRentCosts] = useState(12000);
   const [otherOpex, setOtherOpex] = useState(8000);
 
-  // Новые переменные расходы (% от выручки)
   const [bankCommissionRate, setBankCommissionRate] = useState(1);
   const [teamKpiRate, setTeamKpiRate] = useState(5);
   const [drrRate, setDrrRate] = useState(10);
@@ -194,7 +194,31 @@ export default function Home() {
   };
 
   const forecast = useMemo(() => {
-    const rows = [];
+    const rows: {
+      month: string;
+      units: number;
+      revenue: number;
+      cogs: number;
+      bankCommission: number;
+      teamKpi: number;
+      drr: number;
+      totalVariableExpenses: number;
+      grossProfit: number;
+      marketing: number;
+      salaries: number;
+      rent: number;
+      otherOpex: number;
+      totalOpex: number;
+      ebitda: number;
+      tax: number;
+      netProfit: number;
+      cashFlow: number;
+      endingCash: number;
+      grossMargin: number;
+      netMargin: number;
+      effectiveTaxRate: number;
+    }[] = [];
+
     let cumulativeCash = startingCash;
 
     for (let month = 1; month <= months; month++) {
@@ -217,7 +241,6 @@ export default function Home() {
         totalCogs += cogs;
       }
 
-      // Переменные расходы от выручки
       const bankCommission = totalRevenue * (bankCommissionRate / 100);
       const teamKpi = totalRevenue * (teamKpiRate / 100);
       const drr = totalRevenue * (drrRate / 100);
@@ -260,27 +283,22 @@ export default function Home() {
         month: `М${month}`,
         units: Math.round(totalUnits),
         revenue: Math.round(totalRevenue),
-
         cogs: Math.round(totalCogs),
         bankCommission: Math.round(bankCommission),
         teamKpi: Math.round(teamKpi),
         drr: Math.round(drr),
         totalVariableExpenses: Math.round(totalVariableExpenses),
-
         grossProfit: Math.round(grossProfit),
-
         marketing: Math.round(monthlyMarketing),
         salaries: Math.round(monthlySalaries),
         rent: Math.round(monthlyRent),
         otherOpex: Math.round(monthlyOther),
         totalOpex: Math.round(totalOpex),
-
         ebitda: Math.round(ebitda),
         tax: Math.round(tax),
         netProfit: Math.round(netProfit),
         cashFlow: Math.round(cashFlow),
         endingCash: Math.round(cumulativeCash),
-
         grossMargin: Math.round(grossMargin * 100) / 100,
         netMargin: Math.round(netMargin * 100) / 100,
         effectiveTaxRate: Math.round(effectiveTaxRate * 100) / 100,
@@ -320,6 +338,48 @@ export default function Home() {
   const profitableMonths = forecast.filter((row) => row.netProfit > 0).length;
   const lossMonths = forecast.filter((row) => row.netProfit < 0).length;
 
+  const handleExport = () => {
+    exportFinancialModelToExcel({
+      scenarioTitle: selectedScenario.title,
+      taxModeTitle: taxModeConfig[taxMode].title,
+      taxModeDescription: taxModeConfig[taxMode].description,
+      months,
+      startingCash,
+
+      marketing,
+      salaryCosts,
+      rentCosts,
+      otherOpex,
+
+      bankCommissionRate,
+      teamKpiRate,
+      drrRate,
+
+      totalRevenue,
+      totalCogs,
+      totalBankCommission,
+      totalTeamKpi,
+      totalDrr,
+      totalGrossProfit,
+      totalEbitda,
+      totalTax,
+      totalNetProfit,
+      endingCash,
+      profitableMonths,
+      lossMonths,
+
+      products: products.map((product) => ({
+        Название: product.name,
+        "Цена продажи": product.price,
+        "Стартовый объём": product.volume,
+        "Рост в месяц %": product.growth,
+        "Себестоимость единицы": product.costPerUnit,
+      })),
+
+      forecast,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#edf7ef] text-slate-900">
       <div className="flex">
@@ -337,10 +397,14 @@ export default function Home() {
               Обзор модели
             </div>
             <div className="rounded-xl px-4 py-3 text-slate-600">Продукты</div>
-            <div className="rounded-xl px-4 py-3 text-slate-600">Переменные расходы</div>
+            <div className="rounded-xl px-4 py-3 text-slate-600">
+              Переменные расходы
+            </div>
             <div className="rounded-xl px-4 py-3 text-slate-600">OPEX</div>
             <div className="rounded-xl px-4 py-3 text-slate-600">Графики</div>
-            <div className="rounded-xl px-4 py-3 text-slate-600">Таблица прогноза</div>
+            <div className="rounded-xl px-4 py-3 text-slate-600">
+              Таблица прогноза
+            </div>
           </nav>
 
           <div className="mt-auto rounded-2xl border border-green-100 bg-green-50 p-4">
@@ -369,11 +433,20 @@ export default function Home() {
                   Финансовая модель бизнеса
                 </h2>
                 <p className="text-slate-500 mt-2">
-                  Многопродуктовая модель с EBITDA, налогами, Cash Flow и сценарным анализом.
+                  Многопродуктовая модель с EBITDA, налогами, Cash Flow и
+                  сценарным анализом.
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 items-center">
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  className="px-4 py-2 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm"
+                >
+                  Выгрузить в Excel
+                </button>
+
                 {Object.entries(scenarioConfig).map(([key, value]) => (
                   <button
                     key={key}
@@ -406,7 +479,9 @@ export default function Home() {
                         : "border-slate-200 bg-white hover:bg-slate-50"
                     }`}
                   >
-                    <div className="font-semibold">{taxModeConfig[mode].title}</div>
+                    <div className="font-semibold">
+                      {taxModeConfig[mode].title}
+                    </div>
                     <div className="text-sm text-slate-500 mt-1">
                       {taxModeConfig[mode].description}
                     </div>
@@ -498,19 +573,25 @@ export default function Home() {
                         <NumberInput
                           label="Цена продажи"
                           value={product.price}
-                          onChange={(val) => updateProduct(product.id, "price", val)}
+                          onChange={(val) =>
+                            updateProduct(product.id, "price", val)
+                          }
                         />
 
                         <NumberInput
                           label="Стартовый объём"
                           value={product.volume}
-                          onChange={(val) => updateProduct(product.id, "volume", val)}
+                          onChange={(val) =>
+                            updateProduct(product.id, "volume", val)
+                          }
                         />
 
                         <NumberInput
                           label="Рост в месяц"
                           value={product.growth}
-                          onChange={(val) => updateProduct(product.id, "growth", val)}
+                          onChange={(val) =>
+                            updateProduct(product.id, "growth", val)
+                          }
                           step="0.1"
                           suffix="%"
                         />
@@ -608,7 +689,9 @@ export default function Home() {
 
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-sm text-slate-500">Комиссия банка</div>
+                      <div className="text-sm text-slate-500">
+                        Комиссия банка
+                      </div>
                       <div className="text-xl font-bold mt-2">
                         {formatNumber(totalBankCommission)}
                       </div>
@@ -629,7 +712,9 @@ export default function Home() {
                     </div>
 
                     <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-sm text-slate-500">Себестоимость</div>
+                      <div className="text-sm text-slate-500">
+                        Себестоимость
+                      </div>
                       <div className="text-xl font-bold mt-2">
                         {formatNumber(totalCogs)}
                       </div>
@@ -638,14 +723,18 @@ export default function Home() {
 
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <div className="rounded-2xl bg-green-50 p-4">
-                      <div className="text-sm text-slate-500">Прибыльных месяцев</div>
+                      <div className="text-sm text-slate-500">
+                        Прибыльных месяцев
+                      </div>
                       <div className="text-2xl font-bold mt-2 text-green-700">
                         {profitableMonths}
                       </div>
                     </div>
 
                     <div className="rounded-2xl bg-red-50 p-4">
-                      <div className="text-sm text-slate-500">Убыточных месяцев</div>
+                      <div className="text-sm text-slate-500">
+                        Убыточных месяцев
+                      </div>
                       <div className="text-2xl font-bold mt-2 text-red-600">
                         {lossMonths}
                       </div>
@@ -653,7 +742,9 @@ export default function Home() {
                   </div>
 
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-sm text-slate-500">Конечный остаток денег</div>
+                    <div className="text-sm text-slate-500">
+                      Конечный остаток денег
+                    </div>
                     <div
                       className={`text-2xl font-bold mt-2 ${
                         endingCash >= 0 ? "text-green-700" : "text-red-600"
@@ -767,21 +858,43 @@ export default function Home() {
                       <th className="text-left p-3 font-semibold">Месяц</th>
                       <th className="text-left p-3 font-semibold">Ед. продаж</th>
                       <th className="text-left p-3 font-semibold">Выручка</th>
-                      <th className="text-left p-3 font-semibold">Себестоимость</th>
-                      <th className="text-left p-3 font-semibold">Комиссия банка</th>
-                      <th className="text-left p-3 font-semibold">KPI команды</th>
+                      <th className="text-left p-3 font-semibold">
+                        Себестоимость
+                      </th>
+                      <th className="text-left p-3 font-semibold">
+                        Комиссия банка
+                      </th>
+                      <th className="text-left p-3 font-semibold">
+                        KPI команды
+                      </th>
                       <th className="text-left p-3 font-semibold">ДРР</th>
-                      <th className="text-left p-3 font-semibold">Переменные расходы</th>
-                      <th className="text-left p-3 font-semibold">Валовая прибыль</th>
+                      <th className="text-left p-3 font-semibold">
+                        Переменные расходы
+                      </th>
+                      <th className="text-left p-3 font-semibold">
+                        Валовая прибыль
+                      </th>
                       <th className="text-left p-3 font-semibold">OPEX</th>
                       <th className="text-left p-3 font-semibold">EBITDA</th>
                       <th className="text-left p-3 font-semibold">Налог</th>
-                      <th className="text-left p-3 font-semibold">Чистая прибыль</th>
-                      <th className="text-left p-3 font-semibold">Cash Flow</th>
-                      <th className="text-left p-3 font-semibold">Остаток денег</th>
-                      <th className="text-left p-3 font-semibold">Gross Margin %</th>
-                      <th className="text-left p-3 font-semibold">Net Margin %</th>
-                      <th className="text-left p-3 font-semibold">Налог % от выручки</th>
+                      <th className="text-left p-3 font-semibold">
+                        Чистая прибыль
+                      </th>
+                      <th className="text-left p-3 font-semibold">
+                        Cash Flow
+                      </th>
+                      <th className="text-left p-3 font-semibold">
+                        Остаток денег
+                      </th>
+                      <th className="text-left p-3 font-semibold">
+                        Gross Margin %
+                      </th>
+                      <th className="text-left p-3 font-semibold">
+                        Net Margin %
+                      </th>
+                      <th className="text-left p-3 font-semibold">
+                        Налог % от выручки
+                      </th>
                     </tr>
                   </thead>
 
@@ -795,26 +908,54 @@ export default function Home() {
                       return (
                         <tr
                           key={row.month}
-                          className={index % 2 === 0 ? "bg-white" : "bg-green-50/40"}
+                          className={
+                            index % 2 === 0 ? "bg-white" : "bg-green-50/40"
+                          }
                         >
-                          <td className="p-3 border-t border-slate-200">{row.month}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.units)}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.revenue)}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.cogs)}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.bankCommission)}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.teamKpi)}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.drr)}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.totalVariableExpenses)}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.grossProfit)}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.totalOpex)}</td>
-                          <td className="p-3 border-t border-slate-200">{formatNumber(row.ebitda)}</td>
+                          <td className="p-3 border-t border-slate-200">
+                            {row.month}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.units)}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.revenue)}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.cogs)}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.bankCommission)}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.teamKpi)}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.drr)}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.totalVariableExpenses)}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.grossProfit)}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.totalOpex)}
+                          </td>
+                          <td className="p-3 border-t border-slate-200">
+                            {formatNumber(row.ebitda)}
+                          </td>
                           <td className="p-3 border-t border-slate-200 text-amber-600 font-semibold">
                             {formatNumber(row.tax)}
                           </td>
-                          <td className={`p-3 border-t border-slate-200 ${profitClass}`}>
+                          <td
+                            className={`p-3 border-t border-slate-200 ${profitClass}`}
+                          >
                             {formatNumber(row.netProfit)}
                           </td>
-                          <td className={`p-3 border-t border-slate-200 ${profitClass}`}>
+                          <td
+                            className={`p-3 border-t border-slate-200 ${profitClass}`}
+                          >
                             {formatNumber(row.cashFlow)}
                           </td>
                           <td
@@ -826,10 +967,14 @@ export default function Home() {
                           >
                             {formatNumber(row.endingCash)}
                           </td>
-                          <td className="p-3 border-t border-slate-200">{row.grossMargin}%</td>
+                          <td className="p-3 border-t border-slate-200">
+                            {row.grossMargin}%
+                          </td>
                           <td
                             className={`p-3 border-t border-slate-200 ${
-                              row.netMargin >= 0 ? "text-green-700" : "text-red-600"
+                              row.netMargin >= 0
+                                ? "text-green-700"
+                                : "text-red-600"
                             }`}
                           >
                             {row.netMargin}%
@@ -849,8 +994,4 @@ export default function Home() {
       </div>
     </div>
   );
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 46e2bb650b039b514c016acca978b6fe35bda2a8

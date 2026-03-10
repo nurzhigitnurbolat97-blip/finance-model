@@ -11,7 +11,7 @@ export default function Results() {
       {Object.entries(results).map(([key, value]) => (
         <div key={key} className="flex justify-between mb-2">
           <span>{key}:</span>
-          <span className="font-bold">{String(value)}</span>
+          <span className="font-bold">{value}</span>
         </div>
       ))}
     </div>
